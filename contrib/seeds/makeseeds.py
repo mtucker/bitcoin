@@ -13,7 +13,8 @@ import collections
 
 NSEEDS=512
 
-MAX_SEEDS_PER_ASN=2
+MAX_SEEDS_PER_IPV4_ASN=2
+MAX_SEEDS_PER_IPV6_ASN=10
 
 MIN_BLOCKS = 337600
 
@@ -147,7 +148,12 @@ def lookup_asn(net, ip):
         return None
 
 # Based on Greg Maxwell's seed_filter.py
-def filterbyasn(ips, max_per_asn, max_per_net):
+def filterbyasn(ips, max_per_ipv4_asn, max_per_ipv6_asn, max_per_net):
+    max_per_asn_by_ipv = {
+        'ipv4': max_per_ipv4_asn,
+        'ipv6': max_per_ipv6_asn,
+    }
+
     # Sift out ips by type
     ips_ipv46 = [ip for ip in ips if ip['net'] in ['ipv4', 'ipv6']]
     ips_onion = [ip for ip in ips if ip['net'] == 'onion']
@@ -160,7 +166,7 @@ def filterbyasn(ips, max_per_asn, max_per_net):
         if net_count[ip['net']] == max_per_net:
             continue
         asn = lookup_asn(ip['net'], ip['ip'])
-        if asn is None or asn_count[asn] == max_per_asn:
+        if asn is None or asn_count[asn] == max_per_asn_by_ipv[ip['net']]:
             continue
         asn_count[asn] += 1
         net_count[ip['net']] += 1
@@ -216,7 +222,7 @@ def main():
     ips = filtermultiport(ips)
     print('%s Filter out hosts with multiple bitcoin ports' % (ip_stats(ips)), file=sys.stderr)
     # Look up ASNs and limit results, both per ASN and globally.
-    ips = filterbyasn(ips, MAX_SEEDS_PER_ASN, NSEEDS)
+    ips = filterbyasn(ips, MAX_SEEDS_PER_IPV4_ASN, MAX_SEEDS_PER_IPV6_ASN, NSEEDS)
     print('%s Look up ASNs and limit results per ASN and per net' % (ip_stats(ips)), file=sys.stderr)
     # Sort the results by IP address (for deterministic output).
     ips.sort(key=lambda x: (x['net'], x['sortkey']))
